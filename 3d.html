@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>3D Holographic House with Dramatic Scroll Transitions</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+      background: #1a1a1a;
+      color: white;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch; /* Improve iOS scrolling */
+      height: 100%;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100vh;
+      height: calc(var(--vh, 1vh) * 100); /* iOS viewport height fix */
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+      touch-action: none; /* Prevent default touch actions */
+    }
+    .section {
+      min-height: 100vh;
+      min-height: calc(var(--vh, 1vh) * 100); /* iOS viewport height fix */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      scroll-snap-align: start;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); /* iOS notch support */
+    }
+    html {
+      scroll-snap-type: y proximity; /* Changed from mandatory for better iOS support */
+      scroll-behavior: smooth;
+      height: 100%;
+    }
+    .content {
+      text-align: center;
+      padding: 1.5rem;
+      width: 90%;
+      max-width: 800px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+      -webkit-backdrop-filter: blur(10px); /* iOS blur support */
+      backdrop-filter: blur(10px);
+    }
+    
+    /* iOS-specific adjustments */
+    @supports (-webkit-touch-callout: none) {
+      .section {
+        height: -webkit-fill-available;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div class="section" id="roof-section">
+    <div class="content">
+      <h2 class="text-4xl font-bold mb-4">Roof Products</h2>
+      <p class="text-lg mb-6">Durable and stylish roofing solutions for your home.</p>
+    </div>
+  </div>
+  <div class="section" id="door-section">
+    <div class="content">
+      <h2 class="text-4xl font-bold mb-4">Door Products</h2>
+      <p class="text-lg mb-6">Secure and aesthetic doors to enhance your home.</p>
+    </div>
+  </div>
+  <div class="section" id="floor-section">
+    <div class="content">
+      <h2 class="text-4xl font-bold mb-4">Floor Products</h2>
+      <p class="text-lg mb-6">Premium flooring options for every style.</p>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Three.js
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000, 0); // Transparent background
+    renderer.sortObjects = false; // Add this line to let Three.js handle transparency sorting
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    // House model
+    const houseGroup = new THREE.Group();
+
+    // Roof
+    const roofGeometry = new THREE.ConeGeometry(5, 4, 4);
+    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x00f7ff, transparent: true, opacity: 0.5 });
+    const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+    roof.position.set(0, 4, 0);
+    houseGroup.add(roof);
+
+    // Floor
+    const floorGeometry = new THREE.BoxGeometry(8, 1, 8);
+    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x00f7ff, transparent: true, opacity: 0.5 });
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.position.set(0, 0, 0);
+    houseGroup.add(floor);
+
+    // Door
+    const doorGeometry = new THREE.BoxGeometry(2, 3, 0.5);
+    const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x00f7ff, transparent: true, opacity: 0.5 });
+    const door = new THREE.Mesh(doorGeometry, doorMaterial);
+    door.position.set(0, 1.5, 4);
+    houseGroup.add(door);
+
+    scene.add(houseGroup);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0x00f7ff, 1, 100);
+    pointLight.position.set(5, 5, 5);
+    scene.add(pointLight);
+
+    // Highlight material
+    const highlightMaterial = new THREE.MeshStandardMaterial({
+      color: 0x00f7ff,
+      emissive: 0x00f7ff,
+      emissiveIntensity: 0.8,
+      transparent: true,
+      opacity: 0.7
+    });
+
+    // Create product panel textures
+    function createPanelTexture(text, url) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#00f7ff';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2 - 20);
+      ctx.fillText('Click to Explore', canvas.width / 2, canvas.height / 2 + 20);
+      return { texture: new THREE.CanvasTexture(canvas), url };
+    }
+
+    // Product panels as 3D planes with depth offset
+    const roofPanelData = createPanelTexture('Roof Products', '/roof-products');
+    const roofPanelGeometry = new THREE.PlaneGeometry(3, 1.5);
+    const roofPanelMaterial = new THREE.MeshBasicMaterial({ map: roofPanelData.texture, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+    const roofPanel = new THREE.Mesh(roofPanelGeometry, roofPanelMaterial);
+    roofPanel.position.set(-3, 6, 0.1); // Slight z-offset
+    roofPanel.visible = false;
+    scene.add(roofPanel);
+
+    const doorPanelData = createPanelTexture('Door Products', '/door-products');
+    const doorPanelGeometry = new THREE.PlaneGeometry(2, 1);
+    const doorPanelMaterial = new THREE.MeshBasicMaterial({ map: doorPanelData.texture, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+    const doorPanel = new THREE.Mesh(doorPanelGeometry, doorPanelMaterial);
+    doorPanel.position.set(3, 2, 4.1); // Slight z-offset
+    doorPanel.visible = false;
+    scene.add(doorPanel);
+
+    const floorPanelData = createPanelTexture('Floor Products', '/floor-products');
+    const floorPanelGeometry = new THREE.PlaneGeometry(3, 1.5);
+    const floorPanelMaterial = new THREE.MeshBasicMaterial({ map: floorPanelData.texture, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+    const floorPanel = new THREE.Mesh(floorPanelGeometry, floorPanelMaterial);
+    floorPanel.position.set(-3, -1, 0.1); // Slight z-offset
+    floorPanel.visible = false;
+    scene.add(floorPanel);
+
+    // Raycaster for click detection
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    function onClick(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects([roofPanel, doorPanel, floorPanel]);
+      if (intersects.length > 0) {
+        const panel = intersects[0].object;
+        if (panel === roofPanel) window.location.href = roofPanelData.url;
+        else if (panel === doorPanel) window.location.href = doorPanelData.url;
+        else if (panel === floorPanel) window.location.href = floorPanelData.url;
+      }
+    }
+    window.addEventListener('click', onClick);
+
+    // Transition system
+    let targetPosition = new THREE.Vector3(0, 6, 5); // Initial: roof
+    let targetLookAt = new THREE.Vector3(0, 4, 0); // Initial: roof
+    const transitionSpeed = 0.05; // Controls transition speed
+
+    // Easing function (ease-out)
+    function easeOut(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    // Scroll-based camera control and highlighting
+    const sections = document.querySelectorAll('.section');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        // Reset materials and panel visibility
+        roof.material = roofMaterial;
+        floor.material = floorMaterial;
+        door.material = doorMaterial;
+        roofPanel.visible = false;
+        doorPanel.visible = false;
+        floorPanel.visible = false;
+
+        // Set target camera position and lookAt
+        if (entry.isIntersecting) {
+          const isMobile = window.innerWidth < 768;
+          const isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
+          
+          if (entry.target.id === 'roof-section') {
+            // Adjust camera position based on device
+            if (isMobile) {
+              targetPosition.set(0, 7, 7); // Further back on mobile
+            } else if (isTablet) {
+              targetPosition.set(0, 6.5, 6); // Slightly adjusted for tablet
+            } else {
+              targetPosition.set(0, 6, 5); // Original position for desktop
+            }
+            targetLookAt.set(0, 4, 0);
+            roof.material = highlightMaterial;
+            roofPanel.visible = true;
+          } else if (entry.target.id === 'door-section') {
+            if (isMobile) {
+              targetPosition.set(6, 2, 6); // Wider angle on mobile
+            } else if (isTablet) {
+              targetPosition.set(5.5, 2, 5.5);
+            } else {
+              targetPosition.set(5, 2, 5); // Original position
+            }
+            targetLookAt.set(0, 1.5, 4);
+            door.material = highlightMaterial;
+            doorPanel.visible = true;
+          } else if (entry.target.id === 'floor-section') {
+            if (isMobile) {
+              targetPosition.set(0, 3, 14); // Further back on mobile
+            } else if (isTablet) {
+              targetPosition.set(0, 2.5, 13);
+            } else {
+              targetPosition.set(0, 2, 12); // Original position
+            }
+            targetLookAt.set(0, 0, 0);
+            floor.material = highlightMaterial;
+            floorPanel.visible = true;
+          }
+        }
+      });
+    }, { threshold: 0.5 });
+
+    sections.forEach(section => observer.observe(section));
+
+    // Animation loop with smooth transitions
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Interpolate camera position
+      camera.position.lerp(targetPosition, transitionSpeed);
+
+      // Interpolate camera rotation (lookAt)
+      const currentLookAt = new THREE.Vector3();
+      camera.getWorldDirection(currentLookAt).negate();
+      currentLookAt.add(camera.position);
+      const t = easeOut(transitionSpeed);
+      currentLookAt.lerp(targetLookAt, t);
+      camera.lookAt(currentLookAt);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Enhanced window resize handler
+    function handleResize() {
+      // Update renderer
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      
+      // Update camera
+      const isMobile = window.innerWidth < 768;
+      camera.fov = isMobile ? 85 : 75; // Adjust FOV based on screen size
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      
+      // Force re-render
+      renderer.render(scene, camera);
+    }
+    
+    // Handle window resize with debounce for better performance
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(handleResize, 100);
+    });
+    
+    // Initial call to set everything up correctly
+    handleResize();
+    
+    // Handle device orientation changes on mobile
+    window.addEventListener('orientationchange', () => {
+      setTimeout(handleResize, 200); // Slight delay to ensure dimensions have updated
+    });
+  </script>
+</body>
+</html>
